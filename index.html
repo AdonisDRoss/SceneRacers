@@ -2,42 +2,180 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Canvas Racing Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ShadowRacers: Neo-Velo 2088</title>
     <style>
         body {
             margin: 0;
-            background: #222;
-            color: white;
-            font-family: sans-serif;
+            background: #05070a; 
+            color: #00ffcc; 
+            font-family: 'Courier New', monospace;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
             overflow: hidden;
+            touch-action: none; 
+            -webkit-user-select: none;
+            user-select: none;
         }
         #gameContainer {
             position: relative;
+            width: 900px;
+            height: 600px;
         }
         canvas {
-            border: 4px solid #444;
-            background: #115e1b; /* Grass color */
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 3px solid #1a2233;
+            background: #06080c;
+            box-shadow: 0 0 40px rgba(0, 255, 204, 0.15);
+            width: 100%;
+            height: 100%;
+            display: block;
         }
         #ui {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 20px;
+            left: 20px;
+            font-size: 16px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 8px #000;
+            pointer-events: none;
+            line-height: 1.5;
+            z-index: 10;
+        }
+        .highlight { color: #ffffff; }
+        .boost-container {
+            width: 150px;
+            height: 10px;
+            background: #11141a;
+            border: 1px solid #00ffcc;
+            margin-top: 5px;
+        }
+        #boostBar {
+            width: 100%;
+            height: 100%;
+            background: #00ffcc;
+            box-shadow: 0 0 8px #00ffcc;
+            transition: width 0.1s;
+        }
+        
+        /* Mobile Overlay Layout */
+        #mobileControls {
+            display: none; 
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            padding: 0 40px;
+            box-sizing: border-box;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 20;
+            pointer-events: none; 
+        }
+        .control-group {
+            display: flex;
+            gap: 20px;
+            pointer-events: auto; 
+        }
+        
+        /* Virtual Analog Stick CSS */
+        #joystickContainer {
+            width: 130px;
+            height: 130px;
+            background: rgba(16, 20, 29, 0.4);
+            border: 2px dashed rgba(0, 255, 204, 0.4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            touch-action: none;
+            pointer-events: auto;
+            box-shadow: inset 0 0 15px rgba(0, 255, 204, 0.05);
+        }
+        #joystickKnob {
+            width: 55px;
+            height: 55px;
+            background: #10141d;
+            border: 2px solid #00ffcc;
+            border-radius: 50%;
+            position: absolute;
+            left: 35px;
+            top: 35px;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+            transition: background 0.1s;
+        }
+        #joystickKnob.active {
+            background: rgba(0, 255, 204, 0.2);
+        }
+
+        /* Action Buttons */
+        .btn {
+            width: 85px;
+            height: 85px;
+            background: rgba(16, 20, 29, 0.6);
+            border: 2px solid #00ffcc;
+            border-radius: 50%;
+            color: #00ffcc;
             font-size: 20px;
             font-weight: bold;
-            text-shadow: 2px 2px #000;
-            pointer-events: none;
+            font-family: monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
+            touch-action: none;
         }
+        .btn:active {
+            background: rgba(0, 255, 204, 0.3);
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.6);
+        }
+        #btnBoost {
+            border-color: #ff007f;
+            color: #ff007f;
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.2);
+        }
+        #btnBoost:active {
+            background: rgba(255, 0, 127, 0.3);
+            box-shadow: 0 0 25px rgba(255, 0, 127, 0.6);
+        }
+
         .controls-hint {
             margin-top: 15px;
-            color: #aaa;
-            font-size: 14px;
+            color: #4a5568;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+        }
+
+        @media (max-width: 940px) {
+            #gameContainer {
+                width: 95vw;
+                height: 60vw;
+            }
+            #mobileControls {
+                bottom: 10px;
+                padding: 0 20px;
+            }
+            .btn {
+                width: 70px;
+                height: 70px;
+                font-size: 16px;
+            }
+            #joystickContainer {
+                width: 110px;
+                height: 110px;
+            }
+            #joystickKnob {
+                width: 45px;
+                height: 45px;
+                left: 30px;
+                top: 30px;
+            }
         }
     </style>
 </head>
@@ -45,133 +183,266 @@
 
     <div id="gameContainer">
         <div id="ui">
-            Speed: <span id="speedTxt">0</span> mph<br>
-            Lap: <span id="lapTxt">1</span><br>
-            Time: <span id="timeTxt">0.00</span>s
+            LOCATION: <span class="highlight">NEO-VELO (OUTER LOOP)</span><br>
+            HOVER.VEL: <span id="speedTxt" class="highlight">0</span> KN/H<br>
+            LAP.COUNT: <span id="lapTxt" class="highlight">1</span><br>
+            TIME.ELAP: <span id="timeTxt" class="highlight">0.00</span>s<br>
+            CORE.CELL: 
+            <div class="boost-container"><div id="boostBar"></div></div>
         </div>
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <canvas id="gameCanvas" width="900" height="600"></canvas>
+
+        <div id="mobileControls">
+            <div id="joystickContainer">
+                <div id="joystickKnob"></div>
+            </div>
+            
+            <div class="control-group">
+                <div class="btn" id="btnBoost">BOOST</div>
+                <div class="btn" id="btnDrive">THRUST</div>
+            </div>
+        </div>
     </div>
-    <div class="controls-hint">Use ARROW KEYS or WASD to drive. Stay on the track!</div>
+    <div class="controls-hint" id="hintText">WASD / ARROWS TO STEER • SPACEBAR FOR BOOST</div>
 
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
-        // UI Elements
         const speedTxt = document.getElementById("speedTxt");
         const lapTxt = document.getElementById("lapTxt");
         const timeTxt = document.getElementById("timeTxt");
+        const boostBar = document.getElementById("boostBar");
+        const mobileControls = document.getElementById("mobileControls");
+        const hintText = document.getElementById("hintText");
 
-        // Keyboard Input Tracking
-        const keys = {};
-        window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
-        window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+        // Game Input Vectors
+        const inputs = {
+            forward: false,
+            backward: false,
+            steeringValue: 0, // Maps from -1.0 (hard left) to +1.0 (hard right)
+            boost: false
+        };
 
-        // Game State
+        // Keyboard Event Listeners (Map keys cleanly to our new float steering system)
+        window.addEventListener("keydown", e => {
+            const k = e.key.toLowerCase();
+            if (k === "arrowup" || k === "w") inputs.forward = true;
+            if (k === "arrowdown" || k === "s") inputs.backward = true;
+            if (k === "arrowleft" || k === "a") inputs.steeringValue = -1.0;
+            if (k === "arrowright" || k === "d") inputs.steeringValue = 1.0;
+            if (k === " ") inputs.boost = true;
+        });
+
+        window.addEventListener("keyup", e => {
+            const k = e.key.toLowerCase();
+            if (k === "arrowup" || k === "w") inputs.forward = false;
+            if (k === "arrowdown" || k === "s") inputs.backward = false;
+            if (k === "arrowleft" || k === "a" || k === "arrowright" || k === "d") {
+                inputs.steeringValue = 0;
+            }
+            if (k === " ") inputs.boost = false;
+        });
+
+        // Right Side Action Button Touch Binding
+        function bindTouchBtn(elementId, inputProperty) {
+            const btn = document.getElementById(elementId);
+            btn.addEventListener("touchstart", (e) => { e.preventDefault(); inputs[inputProperty] = true; }, { passive: false });
+            btn.addEventListener("touchend", (e) => { e.preventDefault(); inputs[inputProperty] = false; }, { passive: false });
+            btn.addEventListener("touchcancel", (e) => { e.preventDefault(); inputs[inputProperty] = false; }, { passive: false });
+        }
+
+        // --- VIRTUAL JOYSTICK ANALOG SYSTEM MATH ---
+        const joystick = document.getElementById("joystickContainer");
+        const knob = document.getElementById("joystickKnob");
+        let joystickTouchId = null;
+        let joystickCenter = { x: 0, y: 0 };
+        let maxStickDistance = 45; // Max radius the knob can slide inside its housing
+
+        function initJoystick() {
+            // Recalculate physical container bounds on launch or viewport scaling
+            const rect = joystick.getBoundingClientRect();
+            joystickCenter = {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+            maxStickDistance = rect.width / 2.8; 
+        }
+
+        joystick.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            initJoystick(); // Insures bounds map correctly
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            knob.classList.add("active");
+            handleJoystickMove(touch);
+        }, { passive: false });
+
+        window.addEventListener("touchmove", (e) => {
+            if (joystickTouchId === null) return;
+            // Scan touch points to follow tracking finger explicitly
+            for (let i = 0; i < e.touches.length; i++) {
+                if (e.touches[i].identifier === joystickTouchId) {
+                    handleJoystickMove(e.touches[i]);
+                    break;
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener("touchend", (e) => {
+            if (joystickTouchId === null) return;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) {
+                    resetJoystick();
+                    break;
+                }
+            }
+        });
+
+        function handleJoystickMove(touchPoint) {
+            // Trigonometric delta math relative to thumb coordinates
+            let deltaX = touchPoint.clientX - joystickCenter.x;
+            let deltaY = touchPoint.clientY - joystickCenter.y;
+            let currentDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+            // Constraint logic: Keep knob inside bounded ring
+            if (currentDistance > maxStickDistance) {
+                deltaX = (deltaX / currentDistance) * maxStickDistance;
+                deltaY = (deltaY / currentDistance) * maxStickDistance;
+            }
+
+            // Visually offset the center of the CSS Knob element
+            knob.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+
+            // Compute precision percentage to feed the drift engine
+            // Normalized between -1.0 (Full Left) and +1.0 (Full Right)
+            inputs.steeringValue = deltaX / maxStickDistance;
+        }
+
+        function resetJoystick() {
+            joystickTouchId = null;
+            knob.classList.remove("active");
+            knob.style.transform = "translate(0px, 0px)";
+            inputs.steeringValue = 0; // Snap wheel straight
+        }
+
+        // Toggle HUD View if Mobile Architecture is running
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            mobileControls.style.display = "flex";
+            hintText.innerText = "ANALOG SYSTEMS ENGAGED";
+            window.addEventListener("resize", initJoystick);
+            setTimeout(initJoystick, 300); // Warmup delay to guarantee layout painting complete
+            
+            bindTouchBtn("btnDrive", "forward");
+            bindTouchBtn("btnBoost", "boost");
+        }
+
+        // Game Configuration & Engine Variables
         let lap = 1;
         let startTime = Date.now();
         let checkpointPassed = false;
 
-        // Car Object
-        const car = {
-            x: 400,
-            y: 520,
-            width: 30,
-            height: 15,
+        const craft = {
+            x: 500,
+            y: 900,
+            width: 34,
+            height: 18,
             angle: 0,
+            vx: 0,          
+            vy: 0,          
             speed: 0,
-            maxSpeed: 5,
-            accel: 0.1,
-            friction: 0.05,
-            turnSpeed: 0.04
+            baseMaxSpeed: 7,
+            maxSpeed: 7,
+            accel: 0.16,
+            friction: 0.96,
+            turnSpeed: 0.052,
+            battery: 100
         };
 
-        // Track Definition (Center line points)
+        const camera = {
+            x: craft.x - canvas.width / 2,
+            y: craft.y - canvas.height / 2,
+            lerpSpeed: 0.08
+        };
+
         const trackPoints = [
-            {x: 400, y: 520},
-            {x: 650, y: 520},
-            {x: 720, y: 450},
-            {x: 720, y: 150},
-            {x: 650, y: 80},
-            {x: 400, y: 80},
-            {x: 300, y: 200},
-            {x: 200, y: 200},
-            {x: 100, y: 300},
-            {x: 100, y: 450},
-            {x: 180, y: 520}
+            {x: 500, y: 900}, {x: 1400, y: 900}, {x: 1700, y: 600},
+            {x: 1700, y: -200}, {x: 1200, y: -600}, {x: 400, y: -600},
+            {x: -100, y: -200}, {x: -100, y: 300}, {x: 300, y: 500},
+            {x: 100, y: 900}
         ];
-        const trackWidth = 70;
+        const trackWidth = 85;
 
-        // Game Loop
         function update() {
-            // 1. Physics & Movement
-            if (keys["arrowup"] || keys["w"]) {
-                if (car.speed < car.maxSpeed) car.speed += car.accel;
-            } else if (keys["arrowdown"] || keys["s"]) {
-                if (car.speed > -car.maxSpeed / 2) car.speed -= car.accel;
+            let currentAccel = craft.accel;
+            craft.maxSpeed = craft.baseMaxSpeed;
+
+            if (inputs.boost && craft.battery > 0 && inputs.forward) {
+                craft.maxSpeed = 12; 
+                currentAccel = 0.4;
+                craft.battery -= 0.7;
+            } else if (craft.battery < 100) {
+                craft.battery = Math.min(100, craft.battery + 0.2);
+            }
+
+            if (inputs.forward) {
+                craft.speed = Math.min(craft.maxSpeed, craft.speed + currentAccel);
+            } else if (inputs.backward) {
+                craft.speed = Math.max(-craft.maxSpeed / 2, craft.speed - currentAccel);
             } else {
-                // Apply friction when not accelerating
-                if (car.speed > 0) car.speed = Math.max(0, car.speed - car.friction);
-                if (car.speed < 0) car.speed = Math.min(0, car.speed + car.friction);
+                craft.speed *= 0.95; 
             }
 
-            // Turning physics (only turn if moving)
-            if (Math.abs(car.speed) > 0.2) {
-                const currentTurnSpeed = car.turnSpeed * (car.speed / car.maxSpeed);
-                if (keys["arrowleft"] || keys["a"]) {
-                    car.angle -= (car.speed > 0) ? car.turnSpeed : -car.turnSpeed;
-                }
-                if (keys["arrowright"] || keys["d"]) {
-                    car.angle += (car.speed > 0) ? car.turnSpeed : -car.turnSpeed;
-                }
-            }
+            // NEW: Turn velocity scales fluidly based on Analog Position value
+            craft.angle += inputs.steeringValue * craft.turnSpeed;
 
-            // Update positions based on angle
-            car.x += Math.cos(car.angle) * car.speed;
-            car.y += Math.sin(car.angle) * car.speed;
+            craft.vx += Math.cos(craft.angle) * craft.speed * 0.15;
+            craft.vy += Math.sin(craft.angle) * craft.speed * 0.15;
+            
+            craft.vx *= craft.friction;
+            craft.vy *= craft.friction;
 
-            // 2. Track Constraint & Off-road Penalty
-            if (!isCarOnTrack(car.x, car.y)) {
-                car.maxSpeed = 2; // Slow down drastically on grass
-                if (car.speed > car.maxSpeed) car.speed -= 0.2;
+            craft.x += craft.vx;
+            craft.y += craft.vy;
+
+            if (!isCraftOnTrack(craft.x, craft.y)) {
+                craft.baseMaxSpeed = 2.5; 
             } else {
-                car.maxSpeed = 6;
+                craft.baseMaxSpeed = 7.5;
             }
 
-            // 3. Checkpoints & Laps (Finish line is around x: 400, y: 520 going right)
-            // Mid-track checkpoint to prevent cheating
-            if (car.x > 390 && car.x < 410 && car.y < 150) {
-                checkpointPassed = true;
-            }
-            // Finish line lap trigger
-            if (checkpointPassed && car.x > 400 && car.x < 420 && car.y > 480) {
+            if (craft.x > 750 && craft.x < 850 && craft.y < -500) checkpointPassed = true;
+            if (checkpointPassed && craft.x > 500 && craft.x < 530 && craft.y > 800 && craft.y < 1000) {
                 lap++;
                 checkpointPassed = false;
                 lapTxt.innerText = lap;
             }
 
-            // 4. Update UI
-            speedTxt.innerText = Math.round(Math.abs(car.speed) * 20);
+            let targetCamX = craft.x - canvas.width / 2;
+            let targetCamY = craft.y - canvas.height / 2;
+            camera.x += (targetCamX - camera.x) * camera.lerpSpeed;
+            camera.y += (targetCamY - camera.y) * camera.lerpSpeed;
+
+            let currentDisplaySpeed = Math.round(Math.sqrt(craft.vx*craft.vx + craft.vy*craft.vy) * 45);
+            speedTxt.innerText = currentDisplaySpeed;
             timeTxt.innerText = ((Date.now() - startTime) / 1000).toFixed(2);
+            boostBar.style.width = craft.battery + "%";
+            boostBar.style.background = craft.battery < 20 ? "#ff007f" : "#00ffcc";
 
             draw();
             requestAnimationFrame(update);
         }
 
-        // Helper function to check if car is within the road boundaries
-        function isCarOnTrack(x, y) {
+        function isCraftOnTrack(x, y) {
             let minDistance = Infinity;
-            // Find distance to the closest track segment
             for (let i = 0; i < trackPoints.length; i++) {
-                let p1 = trackPoints[i];
-                let p2 = trackPoints[(i + 1) % trackPoints.length];
-                let dist = distToSegment({x: x, y: y}, p1, p2);
+                let dist = distToSegment({x: x, y: y}, trackPoints[i], trackPoints[(i + 1) % trackPoints.length]);
                 if (dist < minDistance) minDistance = dist;
             }
             return minDistance < trackWidth;
         }
 
-        // Geometry math to find distance from a point to a line segment
         function distToSegment(p, v, w) {
             let l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
             if (l2 == 0) return Math.sqrt(Math.pow(p.x - v.x, 2) + Math.pow(p.y - v.y, 2));
@@ -180,12 +451,26 @@
             return Math.sqrt(Math.pow(p.x - (v.x + t * (w.x - v.x)), 2) + Math.pow(p.y - (v.y + t * (w.y - v.y)), 2));
         }
 
-        // Rendering Functions
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Draw Road (Gray background)
-            ctx.strokeStyle = "#444";
+            ctx.save();
+            ctx.translate(-camera.x, -camera.y);
+
+            ctx.strokeStyle = "#0d131f";
+            ctx.lineWidth = 1;
+            let gridSize = 100;
+            let startGridX = Math.floor(camera.x / gridSize) * gridSize;
+            let startGridY = Math.floor(camera.y / gridSize) * gridSize;
+            
+            for(let x = startGridX; x < startGridX + canvas.width + gridSize; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, camera.y); ctx.lineTo(x, camera.y + canvas.height); ctx.stroke();
+            }
+            for(let y = startGridY; y < startGridY + canvas.height + gridSize; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(camera.x, y); ctx.lineTo(camera.x + canvas.width, y); ctx.stroke();
+            }
+
+            ctx.strokeStyle = "#10141d";
             ctx.lineWidth = trackWidth * 2;
             ctx.lineCap = "round";
             ctx.lineJoin = "round";
@@ -197,45 +482,62 @@
             ctx.closePath();
             ctx.stroke();
 
-            // Draw Inner Kerb / Center Line (Dashed white line)
-            ctx.strokeStyle = "#fff";
-            ctx.lineWidth = 4;
-            ctx.setLineDash([15, 15]);
+            ctx.strokeStyle = "#00ffcc";
+            ctx.lineWidth = 3;
+            ctx.shadowColor = "#00ffcc";
+            ctx.shadowBlur = 10;
             ctx.stroke();
-            ctx.setLineDash([]); // Reset dash
+            ctx.shadowBlur = 0;
 
-            // Draw Start / Finish Line
-            ctx.strokeStyle = "rgba(255,255,255,0.6)";
-            ctx.lineWidth = 10;
+            ctx.strokeStyle = "rgba(0, 255, 204, 0.15)";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 20]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.strokeStyle = "#ff007f";
+            ctx.lineWidth = 6;
+            ctx.shadowColor = "#ff007f";
+            ctx.shadowBlur = 12;
             ctx.beginPath();
-            ctx.moveTo(400, 520 - trackWidth);
-            ctx.lineTo(400, 520 + trackWidth);
+            ctx.moveTo(500, 900 - trackWidth);
+            ctx.lineTo(500, 900 + trackWidth);
             ctx.stroke();
+            ctx.shadowBlur = 0;
 
-            // Draw Car
             ctx.save();
-            ctx.translate(car.x, car.y);
-            ctx.rotate(car.angle);
+            ctx.translate(craft.x, craft.y);
+            ctx.rotate(craft.angle);
             
-            // Car Body
-            ctx.fillStyle = "#e63946"; // Racing Red
-            ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height);
+            ctx.fillStyle = "#161d2b"; 
+            ctx.strokeStyle = "#00ffcc";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-craft.width/2, -craft.height/2);
+            ctx.lineTo(craft.width/2, 0); 
+            ctx.lineTo(-craft.width/2, craft.height/2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
             
-            // Windshield / Cabin
-            ctx.fillStyle = "#a8dadc";
-            ctx.fillRect(2, -car.height/3, car.width/4, car.height * 0.66);
+            ctx.fillStyle = "#05070a";
+            ctx.fillRect(-2, -craft.height/4, craft.width/4, craft.height/2);
 
-            // Wheels
-            ctx.fillStyle = "#000";
-            ctx.fillRect(-car.width/3, -car.height/2 - 2, 6, 2);  // Front Left
-            ctx.fillRect(-car.width/3, car.height/2, 6, 2);   // Front Right
-            ctx.fillRect(car.width/4, -car.height/2 - 2, 6, 2);   // Rear Left
-            ctx.fillRect(car.width/4, car.height/2, 6, 2);    // Rear Right
+            if (inputs.forward) {
+                ctx.fillStyle = inputs.boost && craft.battery > 0 ? "#ff007f" : "#00ffcc";
+                let sizeMod = inputs.boost ? 25 : 12;
+                ctx.beginPath();
+                ctx.moveTo(-craft.width/2, -craft.height/4);
+                ctx.lineTo(-craft.width/2 - sizeMod, 0);
+                ctx.lineTo(-craft.width/2, craft.height/4);
+                ctx.closePath();
+                ctx.fill();
+            }
 
-            ctx.restore();
+            ctx.restore(); 
+            ctx.restore(); 
         }
 
-        // Kick off the loop
         update();
     </script>
 </body>
