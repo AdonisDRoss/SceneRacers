@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS Canvas Racing Game</title>
+    <style>
+        body {
+            margin: 0;
+            background: #222;
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        canvas {
+            border: 4px solid #444;
+            background: #115e1b; /* Grass color */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 2px 2px #000;
+            pointer-events: none;
+        }
+        .controls-hint {
+            margin-top: 15px;
+            color: #aaa;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gameContainer">
+        <div id="ui">
+            Speed: <span id="speedTxt">0</span> mph<br>
+            Lap: <span id="lapTxt">1</span><br>
+            Time: <span id="timeTxt">0.00</span>s
+        </div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+    </div>
+    <div class="controls-hint">Use ARROW KEYS or WASD to drive. Stay on the track!</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // UI Elements
+        const speedTxt = document.getElementById("speedTxt");
+        const lapTxt = document.getElementById("lapTxt");
+        const timeTxt = document.getElementById("timeTxt");
+
+        // Keyboard Input Tracking
+        const keys = {};
+        window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+        window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+        // Game State
+        let lap = 1;
+        let startTime = Date.now();
+        let checkpointPassed = false;
+
+        // Car Object
+        const car = {
+            x: 400,
+            y: 520,
+            width: 30,
+            height: 15,
+            angle: 0,
+            speed: 0,
+            maxSpeed: 5,
+            accel: 0.1,
+            friction: 0.05,
+            turnSpeed: 0.04
+        };
+
+        // Track Definition (Center line points)
+        const trackPoints = [
+            {x: 400, y: 520},
+            {x: 650, y: 520},
+            {x: 720, y: 450},
+            {x: 720, y: 150},
+            {x: 650, y: 80},
+            {x: 400, y: 80},
+            {x: 300, y: 200},
+            {x: 200, y: 200},
+            {x: 100, y: 300},
+            {x: 100, y: 450},
+            {x: 180, y: 520}
+        ];
+        const trackWidth = 70;
+
+        // Game Loop
+        function update() {
+            // 1. Physics & Movement
+            if (keys["arrowup"] || keys["w"]) {
+                if (car.speed < car.maxSpeed) car.speed += car.accel;
+            } else if (keys["arrowdown"] || keys["s"]) {
+                if (car.speed > -car.maxSpeed / 2) car.speed -= car.accel;
+            } else {
+                // Apply friction when not accelerating
+                if (car.speed > 0) car.speed = Math.max(0, car.speed - car.friction);
+                if (car.speed < 0) car.speed = Math.min(0, car.speed + car.friction);
+            }
+
+            // Turning physics (only turn if moving)
+            if (Math.abs(car.speed) > 0.2) {
+                const currentTurnSpeed = car.turnSpeed * (car.speed / car.maxSpeed);
+                if (keys["arrowleft"] || keys["a"]) {
+                    car.angle -= (car.speed > 0) ? car.turnSpeed : -car.turnSpeed;
+                }
+                if (keys["arrowright"] || keys["d"]) {
+                    car.angle += (car.speed > 0) ? car.turnSpeed : -car.turnSpeed;
+                }
+            }
+
+            // Update positions based on angle
+            car.x += Math.cos(car.angle) * car.speed;
+            car.y += Math.sin(car.angle) * car.speed;
+
+            // 2. Track Constraint & Off-road Penalty
+            if (!isCarOnTrack(car.x, car.y)) {
+                car.maxSpeed = 2; // Slow down drastically on grass
+                if (car.speed > car.maxSpeed) car.speed -= 0.2;
+            } else {
+                car.maxSpeed = 6;
+            }
+
+            // 3. Checkpoints & Laps (Finish line is around x: 400, y: 520 going right)
+            // Mid-track checkpoint to prevent cheating
+            if (car.x > 390 && car.x < 410 && car.y < 150) {
+                checkpointPassed = true;
+            }
+            // Finish line lap trigger
+            if (checkpointPassed && car.x > 400 && car.x < 420 && car.y > 480) {
+                lap++;
+                checkpointPassed = false;
+                lapTxt.innerText = lap;
+            }
+
+            // 4. Update UI
+            speedTxt.innerText = Math.round(Math.abs(car.speed) * 20);
+            timeTxt.innerText = ((Date.now() - startTime) / 1000).toFixed(2);
+
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        // Helper function to check if car is within the road boundaries
+        function isCarOnTrack(x, y) {
+            let minDistance = Infinity;
+            // Find distance to the closest track segment
+            for (let i = 0; i < trackPoints.length; i++) {
+                let p1 = trackPoints[i];
+                let p2 = trackPoints[(i + 1) % trackPoints.length];
+                let dist = distToSegment({x: x, y: y}, p1, p2);
+                if (dist < minDistance) minDistance = dist;
+            }
+            return minDistance < trackWidth;
+        }
+
+        // Geometry math to find distance from a point to a line segment
+        function distToSegment(p, v, w) {
+            let l2 = Math.pow(v.x - w.x, 2) + Math.pow(v.y - w.y, 2);
+            if (l2 == 0) return Math.sqrt(Math.pow(p.x - v.x, 2) + Math.pow(p.y - v.y, 2));
+            let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return Math.sqrt(Math.pow(p.x - (v.x + t * (w.x - v.x)), 2) + Math.pow(p.y - (v.y + t * (w.y - v.y)), 2));
+        }
+
+        // Rendering Functions
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Road (Gray background)
+            ctx.strokeStyle = "#444";
+            ctx.lineWidth = trackWidth * 2;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            trackPoints.forEach((p, idx) => {
+                if (idx === 0) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+            });
+            ctx.closePath();
+            ctx.stroke();
+
+            // Draw Inner Kerb / Center Line (Dashed white line)
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 4;
+            ctx.setLineDash([15, 15]);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset dash
+
+            // Draw Start / Finish Line
+            ctx.strokeStyle = "rgba(255,255,255,0.6)";
+            ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.moveTo(400, 520 - trackWidth);
+            ctx.lineTo(400, 520 + trackWidth);
+            ctx.stroke();
+
+            // Draw Car
+            ctx.save();
+            ctx.translate(car.x, car.y);
+            ctx.rotate(car.angle);
+            
+            // Car Body
+            ctx.fillStyle = "#e63946"; // Racing Red
+            ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height);
+            
+            // Windshield / Cabin
+            ctx.fillStyle = "#a8dadc";
+            ctx.fillRect(2, -car.height/3, car.width/4, car.height * 0.66);
+
+            // Wheels
+            ctx.fillStyle = "#000";
+            ctx.fillRect(-car.width/3, -car.height/2 - 2, 6, 2);  // Front Left
+            ctx.fillRect(-car.width/3, car.height/2, 6, 2);   // Front Right
+            ctx.fillRect(car.width/4, -car.height/2 - 2, 6, 2);   // Rear Left
+            ctx.fillRect(car.width/4, car.height/2, 6, 2);    // Rear Right
+
+            ctx.restore();
+        }
+
+        // Kick off the loop
+        update();
+    </script>
+</body>
+</html>
