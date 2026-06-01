@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ShadowRacers: Neo-Velo Urban Circuit</title>
+    <title>ShadowRacers: Dual-Canvas Megacity</title>
     <style>
         body {
             margin: 0;
@@ -27,7 +27,7 @@
         }
         canvas {
             border: 3px solid #111622;
-            background: #030508;
+            background: #000;
             box-shadow: 0 0 30px rgba(0, 255, 204, 0.15);
             width: 100%;
             height: 100%;
@@ -48,12 +48,88 @@
         .highlight { color: #ffffff; }
         .zone-slums { color: #ff5500; text-shadow: 0 0 5px #ff5500; }
         .zone-downtown { color: #00ffff; text-shadow: 0 0 5px #00ffff; }
+        
+        /* Mobile Overlay Interface */
+        #mobileControls {
+            display: none; 
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 180px;
+            padding: 0 40px;
+            box-sizing: border-box;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 20;
+            pointer-events: none; 
+        }
+        .control-group {
+            display: flex;
+            gap: 20px;
+            pointer-events: auto; 
+        }
+        #joystickContainer {
+            width: 120px;
+            height: 120px;
+            background: rgba(16, 20, 29, 0.4);
+            border: 2px dashed rgba(0, 255, 204, 0.4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            touch-action: none;
+            pointer-events: auto;
+        }
+        #joystickKnob {
+            width: 50px;
+            height: 50px;
+            background: #10141d;
+            border: 2px solid #00ffcc;
+            border-radius: 50%;
+            position: absolute;
+            left: 33px;
+            top: 33px;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+        }
+        .btn {
+            width: 80px;
+            height: 80px;
+            background: rgba(16, 20, 29, 0.6);
+            border: 2px solid #00ffcc;
+            border-radius: 50%;
+            color: #00ffcc;
+            font-size: 18px;
+            font-weight: bold;
+            font-family: monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+        }
+        .btn:active, #joystickKnob.active {
+            background: rgba(0, 255, 204, 0.2);
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.6);
+        }
+        #btnBoost { border-color: #ff007f; color: #ff007f; }
+        #btnBoost:active { background: rgba(255, 0, 127, 0.2); box-shadow: 0 0 20px rgba(255, 0, 127, 0.6); }
+
         .controls-hint {
             margin-top: 15px;
             color: #3f4e66;
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 2px;
+            text-align: center;
+        }
+
+        @media (max-width: 1040px) {
+            #gameContainer { width: 95vw; height: 60vw; }
+            #mobileControls { bottom: 10px; padding: 0 20px; }
+            .btn { width: 70px; height: 70px; font-size: 14px; }
+            #joystickContainer { width: 110px; height: 110px; }
+            #joystickKnob { width: 44px; height: 44px; left: 31px; top: 31px; }
         }
     </style>
 </head>
@@ -61,19 +137,36 @@
 
     <div id="gameContainer">
         <div id="ui">
-            GPS.GRID: <span id="zoneTxt" class="zone-slums">LOADING...</span><br>
+            DISTRICT: <span id="zoneTxt" class="zone-slums">GENERATING MATRICES...</span><br>
             COORDS: X:<span id="coordX" class="highlight">0</span> Y:<span id="coordY" class="highlight">0</span><br>
             HEADING: <span id="headingTxt" class="highlight">0</span>/255<br>
             VELOCITY: <span id="speedTxt" class="highlight">0</span> KN/H<br>
             LAP.RECORDS: <span id="lapTxt" class="highlight">1</span>
         </div>
         <canvas id="gameCanvas" width="1024" height="640"></canvas>
+
+        <div id="mobileControls">
+            <div id="joystickContainer">
+                <div id="joystickKnob"></div>
+            </div>
+            <div class="control-group">
+                <div class="btn" id="btnBoost">BOOST</div>
+                <div class="btn" id="btnDrive">THRUST</div>
+            </div>
+        </div>
     </div>
-    <div class="controls-hint">STEER: WASD/ARROWS • BOOST: SPACEBAR • EXPLORE THE MEGACITY MAP</div>
+    <div class="controls-hint" id="hintText">WASD / ARROWS TO STEER • SPACEBAR TO IGNITE NITRO</div>
 
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
+
+        // --- PREPARE ENORMOUS BLANK OFFSCREEN CANVAS MAP ---
+        const mapSize = 4000;
+        const offscreenCanvas = document.createElement("canvas");
+        offscreenCanvas.width = mapSize;
+        offscreenCanvas.height = mapSize;
+        const oCtx = offscreenCanvas.getContext("2d");
 
         const zoneTxt = document.getElementById("zoneTxt");
         const coordX = document.getElementById("coordX");
@@ -81,19 +174,21 @@
         const headingTxt = document.getElementById("headingTxt");
         const speedTxt = document.getElementById("speedTxt");
         const lapTxt = document.getElementById("lapTxt");
+        const mobileControls = document.getElementById("mobileControls");
+        const hintText = document.getElementById("hintText");
 
-        // Preloaded Spectre-X1 Sprite Base
         const craftSprite = new Image();
         craftSprite.src = "https://images.gmanetwork.com/news/images/2021/04/cyber_1_20210423160249.jpg"; 
 
-        const inputs = { forward: false, backward: false, left: false, right: false, boost: false };
+        const inputs = { forward: false, backward: false, left: false, right: false, steeringValue: 0, boost: false };
 
+        // Keyboard Routing Configuration
         window.addEventListener("keydown", e => {
             const k = e.key.toLowerCase();
             if (k === "arrowup" || k === "w") inputs.forward = true;
             if (k === "arrowdown" || k === "s") inputs.backward = true;
-            if (k === "arrowleft" || k === "a") inputs.left = true;
-            if (k === "arrowright" || k === "d") inputs.right = true;
+            if (k === "arrowleft" || k === "a") { inputs.left = true; inputs.steeringValue = -1.0; }
+            if (k === "arrowright" || k === "d") { inputs.right = true; inputs.steeringValue = 1.0; }
             if (k === " ") inputs.boost = true;
         });
 
@@ -101,58 +196,148 @@
             const k = e.key.toLowerCase();
             if (k === "arrowup" || k === "w") inputs.forward = false;
             if (k === "arrowdown" || k === "s") inputs.backward = false;
-            if (k === "arrowleft" || k === "a" || k === "arrowright" || k === "d") { inputs.left = false; inputs.right = false; }
+            if (k === "arrowleft" || k === "a" || k === "arrowright" || k === "d") { 
+                inputs.left = false; inputs.right = false; inputs.steeringValue = 0; 
+            }
             if (k === " ") inputs.boost = false;
         });
 
+        // Mobile Controls Activation Layout
+        function bindTouchBtn(elementId, inputProperty) {
+            const btn = document.getElementById(elementId);
+            btn.addEventListener("touchstart", (e) => { e.preventDefault(); inputs[inputProperty] = true; }, { passive: false });
+            btn.addEventListener("touchend", (e) => { e.preventDefault(); inputs[inputProperty] = false; }, { passive: false });
+            btn.addEventListener("touchcancel", (e) => { e.preventDefault(); inputs[inputProperty] = false; }, { passive: false });
+        }
+
+        const joystick = document.getElementById("joystickContainer");
+        const knob = document.getElementById("joystickKnob");
+        let joystickTouchId = null;
+        let joystickCenter = { x: 0, y: 0 };
+        let maxStickDistance = 40;
+
+        function initJoystick() {
+            const rect = joystick.getBoundingClientRect();
+            joystickCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+            maxStickDistance = rect.width / 2.8; 
+        }
+
+        joystick.addEventListener("touchstart", (e) => {
+            e.preventDefault(); initJoystick();
+            const touch = e.changedTouches[0];
+            joystickTouchId = touch.identifier;
+            knob.classList.add("active");
+            handleJoystickMove(touch);
+        }, { passive: false });
+
+        window.addEventListener("touchmove", (e) => {
+            if (joystickTouchId === null) return;
+            for (let i = 0; i < e.touches.length; i++) {
+                if (e.touches[i].identifier === joystickTouchId) { handleJoystickMove(e.touches[i]); break; }
+            }
+        }, { passive: false });
+
+        window.addEventListener("touchend", (e) => {
+            if (joystickTouchId === null) return;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === joystickTouchId) { resetJoystick(); break; }
+            }
+        });
+
+        function handleJoystickMove(touchPoint) {
+            let deltaX = touchPoint.clientX - joystickCenter.x;
+            let deltaY = touchPoint.clientY - joystickCenter.y;
+            let currentDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+            if (currentDistance > maxStickDistance) { deltaX = (deltaX / currentDistance) * maxStickDistance; }
+            knob.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+            inputs.steeringValue = deltaX / maxStickDistance;
+        }
+
+        function resetJoystick() {
+            joystickTouchId = null; knob.classList.remove("active"); knob.style.transform = "translate(0px, 0px)"; inputs.steeringValue = 0;
+        }
+
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            mobileControls.style.display = "flex";
+            hintText.innerText = "CHROMIUM ANALOG LINK READY";
+            window.addEventListener("resize", initJoystick);
+            setTimeout(initJoystick, 300);
+            bindTouchBtn("btnDrive", "forward");
+            bindTouchBtn("btnBoost", "boost");
+        }
+
+        // --- WORLD MATRIX SETTINGS ---
         let lap = 1;
         let checkpointPassed = false;
         let headingByte = 0; 
 
-        // Car size shrunk down significantly to make the environment look gargantuan
+        // Car scale shrunken down even further to accentuate canvas size differences
         const craft = {
-            x: 200, y: 200,
-            width: 30, height: 15, 
+            x: 400, y: 300,
+            width: 26, height: 13, 
             vx: 0, vy: 0, speed: 0,
-            baseMaxSpeed: 9, maxSpeed: 9,
-            accel: 0.22, friction: 0.95, turnByteSpeed: 5
+            baseMaxSpeed: 9.5, maxSpeed: 9.5,
+            accel: 0.24, friction: 0.95, turnByteSpeed: 5
         };
 
         const camera = { x: craft.x, y: craft.y, zoom: 1.0, targetZoom: 1.0, lerpSpeed: 0.07 };
 
-        // --- ENORMOUS SECTOR-BASED MAP DESIGN ($4000 \times 4000$ SPACE) ---
         const trackPoints = [
-            // ZONE A: THE UNDERCITY SLUMS (Tight, claustrophobic corridors)
-            { x: 200,  y: 200 },   // Starting Grid
-            { x: 1200, y: 200 },   // The Pipe Straightaway
-            { x: 1200, y: 800 },   // Sewer Chicane Corner Entry
-            { x: 600,  y: 800 },   // Waste Processing S-Curve
-            { x: 600,  y: 1400 },  // Lower Slums Drop
-            { x: 1500, y: 1400 },  // Factory Outlet Escape Road
-            
-            // CONDUIT TRANSITION ZONE
-            { x: 2000, y: 2000 },  // Mega Sky-Bridge Ascent Ramp
-            
-            // ZONE B: DOWNTOWN CORPORATE HIGH-RISE (Massive open avenues)
-            { x: 2000, y: 3200 },  // Neon Boulevard Main Straight
-            { x: 3500, y: 3200 },  // Corporate Plaza Gateway
-            { x: 3500, y: 1200 },  // Upper Tier Fast Sweeper
-            { x: 2600, y: 600 },   // Skyscraper Roof Transit Link
-            { x: 2600, y: -400 },  // North Highway Loop
-            { x: -300, y: -400 },  // West Ring Express Lane
-            { x: -300, y: 200 }    // Lowering back into Slums Sector Gate
+            // SLUMS DISTRICT WAYPOINTS
+            { x: 400,  y: 300 },   { x: 1400, y: 300 },   { x: 1400, y: 1000 },   
+            { x: 700,  y: 1000 },  { x: 700,  y: 1600 },  { x: 1800, y: 1600 },  
+            // HIGH-TECH BOULEVARD ASCENT
+            { x: 2300, y: 2300 },  
+            // DOWNTOWN DISTRICT FREIEWAYS
+            { x: 2300, y: 3600 },  { x: 3700, y: 3600 },  { x: 3700, y: 1400 },  
+            { x: 2800, y: 700 },   { x: 2800, y: -200 },  { x: -100, y: -200 },  
+            { x: -100, y: 300 }    
         ];
-        
-        // Dynamic roadway widths depending on sector zones
+
         function getTrackWidthAtSegment(idx) {
-            // Segments 7 to 12 map out the Downtown Area 
-            if (idx >= 7 && idx <= 12) return 140; // Wide multi-lane freeway
-            return 75; // Narrow, packed concrete slum paths
+            if (idx >= 7 && idx <= 12) return 150; // Massive downtown super-lanes
+            return 80; // Suffocating, packed slums concrete trenches
         }
 
+        // --- PRE-RENDERING THE METROPOLIS ONCE AT INITIALIZATION ---
+        function generateMetropolisBackground() {
+            oCtx.fillStyle = "#030407"; // Master void ground fill
+            oCtx.fillRect(0,0, mapSize, mapSize);
+
+            // Construct structural grid cells across background
+            oCtx.strokeStyle = "#080c14"; oCtx.lineWidth = 1;
+            let step = 100;
+            for(let x=0; x<mapSize; x+=step) { oCtx.beginPath(); oCtx.moveTo(x,0); oCtx.lineTo(x,mapSize); oCtx.stroke(); }
+            for(let y=0; y<mapSize; y+=step) { oCtx.beginPath(); oCtx.moveTo(0,y); oCtx.lineTo(mapSize,y); oCtx.stroke(); }
+
+            // Draw District Road Networks
+            trackPoints.forEach((p, idx) => {
+                let nextP = trackPoints[(idx + 1) % trackPoints.length];
+                let currentWidth = getTrackWidthAtSegment(idx);
+
+                // Asphalt Base Plates
+                oCtx.strokeStyle = (idx >= 7 && idx <= 12) ? "#0c1017" : "#06080c"; 
+                oCtx.lineWidth = currentWidth * 2;
+                oCtx.lineCap = "round"; oCtx.lineJoin = "round";
+                oCtx.beginPath(); oCtx.moveTo(p.x, p.y); oCtx.lineTo(nextP.x, nextP.y); oCtx.stroke();
+
+                // Dynamic District Color Rails
+                oCtx.strokeStyle = (idx >= 7 && idx <= 12) ? "#00ffff" : "#ff5500"; 
+                oCtx.lineWidth = 3;
+                oCtx.stroke();
+            });
+
+            // Injection of a glowing pink Start/Finish Threshold line graphic
+            oCtx.strokeStyle = "#ff006a"; oCtx.lineWidth = 8;
+            oCtx.beginPath(); oCtx.moveTo(400, 300 - 80); oCtx.lineTo(400, 300 + 80); oCtx.stroke();
+        }
+        generateMetropolisBackground();
+
+        // --- CORE GAME FRAME LOOP ---
         function update() {
             craft.maxSpeed = craft.baseMaxSpeed;
-            if (inputs.boost && inputs.forward) craft.maxSpeed = 15;
+            if (inputs.boost && inputs.forward) craft.maxSpeed = 16.5;
 
             if (inputs.forward) {
                 craft.speed = Math.min(craft.maxSpeed, craft.speed + craft.accel);
@@ -162,10 +347,14 @@
                 craft.speed *= 0.94;
             }
 
-            if (inputs.left)  headingByte = (headingByte - craft.turnByteSpeed + 256) % 256;
-            if (inputs.right) headingByte = (headingByte + craft.turnByteSpeed) % 256;
+            // Bind cross-platform steering vectors safely
+            if (inputs.left && !('ontouchstart' in window)) headingByte = (headingByte - craft.turnByteSpeed + 256) % 256;
+            else if (inputs.right && !('ontouchstart' in window)) headingByte = (headingByte + craft.turnByteSpeed) % 256;
+            else if (Math.abs(inputs.steeringValue) > 0.05) {
+                headingByte = (headingByte + (inputs.steeringValue * craft.turnByteSpeed) + 256) % 256;
+            }
 
-            let radiansHeading = (headingByte / 256) * (Math.PI * 2);
+            let radiansHeading = (Math.floor(headingByte) / 256) * (Math.PI * 2);
 
             craft.vx += Math.cos(radiansHeading) * craft.speed * 0.15;
             craft.vy += Math.sin(radiansHeading) * craft.speed * 0.15;
@@ -175,55 +364,42 @@
             craft.x += craft.vx;
             craft.y += craft.vy;
 
-            // Terrain verification map logic
+            // Collision boundary checks 
             let currentTrackProfile = checkTrackCollisions(craft.x, craft.y);
-            craft.baseMaxSpeed = (!currentTrackProfile.onTrack) ? 3.0 : 9.5;
+            craft.baseMaxSpeed = (!currentTrackProfile.onTrack) ? 3.0 : 10.0;
 
-            // Display zone tag adjustments based on current map position coordinates
-            if (craft.y > 1700) {
-                zoneTxt.innerText = "DOWNTOWN SECTOR (HIGH-RISE)";
-                zoneTxt.className = "zone-downtown";
+            if (craft.y > 1900) {
+                zoneTxt.innerText = "DOWNTOWN DUPLEX BOULEVARD"; zoneTxt.className = "zone-downtown";
             } else {
-                zoneTxt.innerText = "UNDERCITY SECTOR (SLUMS)";
-                zoneTxt.className = "zone-slums";
+                zoneTxt.innerText = "UNDERCITY NEON SLUMS"; zoneTxt.className = "zone-slums";
             }
 
-            // Lap tracking validation marks
-            if (craft.x > 1900 && craft.y > 1900 && craft.y < 2100) checkpointPassed = true;
-            if (checkpointPassed && craft.x > 150 && craft.x < 250 && craft.y > 150 && craft.y < 250) {
+            if (craft.x > 2100 && craft.y > 2100 && craft.y < 2500) checkpointPassed = true;
+            if (checkpointPassed && craft.x > 350 && craft.x < 450 && craft.y > 250 && craft.y < 350) {
                 lap++; checkpointPassed = false; lapTxt.innerText = lap;
             }
 
-            // Camera adjustments based on velocity shifts
             let currentVelocityMagnitude = Math.sqrt(craft.vx * craft.vx + craft.vy * craft.vy);
-            camera.targetZoom = 1.0 - Math.min(0.4, currentVelocityMagnitude * 0.035);
+            camera.targetZoom = 1.0 - Math.min(0.45, currentVelocityMagnitude * 0.038);
 
             camera.zoom += (camera.targetZoom - camera.zoom) * camera.lerpSpeed;
             camera.x += (craft.x - camera.x) * camera.lerpSpeed;
             camera.y += (craft.y - camera.y) * camera.lerpSpeed;
 
-            // HUD data streams
             coordX.innerText = Math.round(craft.x);
             coordY.innerText = Math.round(craft.y);
-            headingTxt.innerText = headingByte;
-            speedTxt.innerText = Math.round(currentVelocityMagnitude * 42);
+            headingTxt.innerText = Math.floor(headingByte);
+            speedTxt.innerText = Math.round(currentVelocityMagnitude * 44);
 
             draw();
             requestAnimationFrame(update);
         }
 
-        // Variable track-width geometric boundary scanner
         function checkTrackCollisions(x, y) {
-            let minDistance = Infinity;
-            let activeSegmentWidth = 80;
+            let minDistance = Infinity; let activeSegmentWidth = 80;
             for (let i = 0; i < trackPoints.length; i++) {
-                let p1 = trackPoints[i];
-                let p2 = trackPoints[(i + 1) % trackPoints.length];
-                let dist = distToSegment({x: x, y: y}, p1, p2);
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    activeSegmentWidth = getTrackWidthAtSegment(i);
-                }
+                let dist = distToSegment({x: x, y: y}, trackPoints[i], trackPoints[(i + 1) % trackPoints.length]);
+                if (dist < minDistance) { minDistance = dist; activeSegmentWidth = getTrackWidthAtSegment(i); }
             }
             return { onTrack: minDistance < activeSegmentWidth };
         }
@@ -238,57 +414,28 @@
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+            
             ctx.save();
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.scale(camera.zoom, camera.zoom);
             ctx.translate(-camera.x, -camera.y);
 
-            // Infinite Parallax Matrix Background Lines
-            ctx.strokeStyle = "#080d1a"; ctx.lineWidth = 1;
-            let gridSize = 120;
-            let startGridX = Math.floor((camera.x - canvas.width * 2) / gridSize) * gridSize;
-            let startGridY = Math.floor((camera.y - canvas.height * 2) / gridSize) * gridSize;
-            for(let x = startGridX; x < startGridX + (canvas.width * 4); x += gridSize) {
-                ctx.beginPath(); ctx.moveTo(x, camera.y - canvas.height*2); ctx.lineTo(x, camera.y + canvas.height*2); ctx.stroke();
-            }
-            for(let y = startGridY; y < startGridY + (canvas.height * 4); y += gridSize) {
-                ctx.beginPath(); ctx.moveTo(camera.x - canvas.width*2, y); ctx.lineTo(camera.x + canvas.width*2, y); ctx.stroke();
-            }
+            // --- THE CANVAS ADVANCEMENT SPLIT ---
+            // Instead of doing thousands of math lines per loop, we paint the snapshot slice directly
+            ctx.drawImage(offscreenCanvas, 0, 0);
 
-            // FIRST ENVIRONMENT RENDERING PASS: Dynamic roadway segments
-            trackPoints.forEach((p, idx) => {
-                let nextP = trackPoints[(idx + 1) % trackPoints.length];
-                let currentWidth = getTrackWidthAtSegment(idx);
+            // EXECUTE DUAL-LAYER CAR VEHICLE STACK OVER CHASSIS GEOMETRY
+            let radiansHeading = (Math.floor(headingByte) / 256) * (Math.PI * 2);
 
-                // Asphalt Base Layer
-                ctx.strokeStyle = (idx >= 7 && idx <= 12) ? "#0f131c" : "#090a0f"; 
-                ctx.lineWidth = currentWidth * 2;
-                ctx.lineCap = "round"; ctx.lineJoin = "round";
-                ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(nextP.x, nextP.y); ctx.stroke();
-
-                // Distinct sector edge illumination lines
-                ctx.strokeStyle = (idx >= 7 && idx <= 12) ? "#00ffff" : "#ff5500"; 
-                ctx.lineWidth = 3;
-                ctx.stroke();
-            });
-
-            // FINISH LINE ARRAYS
-            ctx.strokeStyle = "#e60067"; ctx.lineWidth = 8;
-            ctx.beginPath(); ctx.moveTo(200, 200 - 75); ctx.lineTo(200, 200 + 75); ctx.stroke();
-
-            // SYSTEM VEHICLE RENDER PIPELINE
-            let radiansHeading = (headingByte / 256) * (Math.PI * 2);
-
-            // Overhead Drop Shadow Vector
+            // Render Flat Silhouette Shadow
             ctx.save();
-            ctx.translate(craft.x + 6, craft.y + 10); 
+            ctx.translate(craft.x + 5, craft.y + 8); 
             ctx.rotate(radiansHeading);
-            ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+            ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
             ctx.fillRect(-craft.width / 2, -craft.height / 2, craft.width, craft.height);
             ctx.restore();
 
-            // Core Chassis Drawing Pass
+            // Render Mid-Layer Core Chassis Sprite
             ctx.save();
             ctx.translate(craft.x, craft.y);
             ctx.rotate(radiansHeading);
@@ -299,15 +446,15 @@
                 ctx.fillStyle = "#121929"; ctx.fillRect(-craft.width/2, -craft.height/2, craft.width, craft.height);
             }
 
-            // Input Delta Layer Checks
+            // Input Delta Passes
             if (inputs.backward || craft.speed === 0) {
                 ctx.fillStyle = "#ff0044";
-                ctx.fillRect(-craft.width/2, -craft.height/2, 2, 3);
-                ctx.fillRect(-craft.width/2, craft.height/2 - 3, 2, 3);
+                ctx.fillRect(-craft.width/2, -craft.height/2, 2, 2.5);
+                ctx.fillRect(-craft.width/2, craft.height/2 - 2.5, 2, 2.5);
             }
             if (inputs.forward) {
                 ctx.fillStyle = (inputs.boost) ? "#e60067" : "#00ffcc";
-                let flameSize = (inputs.boost) ? 18 : 8;
+                let flameSize = (inputs.boost) ? 14 : 6;
                 ctx.beginPath(); ctx.moveTo(-craft.width/2, -craft.height/4); ctx.lineTo(-craft.width/2 - flameSize, 0); ctx.lineTo(-craft.width/2, craft.height/4); ctx.closePath(); ctx.fill();
             }
 
