@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ShadowRacers: Neo-Velo 2088</title>
+    <title>ShadowRacers: Neo-Velo Urban Circuit</title>
     <style>
         body {
             margin: 0;
-            background: #05070a; 
+            background: #020305; 
             color: #00ffcc; 
             font-family: 'Courier New', monospace;
             display: flex;
@@ -22,160 +22,38 @@
         }
         #gameContainer {
             position: relative;
-            width: 900px;
-            height: 600px;
+            width: 1024px;
+            height: 640px;
         }
         canvas {
-            border: 3px solid #1a2233;
-            background: #06080c;
-            box-shadow: 0 0 40px rgba(0, 255, 204, 0.15);
+            border: 3px solid #111622;
+            background: #030508;
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.15);
             width: 100%;
             height: 100%;
             display: block;
+            image-rendering: pixelated;
         }
         #ui {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            font-size: 16px;
+            top: 25px;
+            left: 25px;
+            font-size: 13px;
             letter-spacing: 2px;
-            text-shadow: 0 0 8px #000;
+            text-shadow: 2px 2px #000;
             pointer-events: none;
-            line-height: 1.5;
+            line-height: 1.6;
             z-index: 10;
         }
         .highlight { color: #ffffff; }
-        .boost-container {
-            width: 150px;
-            height: 10px;
-            background: #11141a;
-            border: 1px solid #00ffcc;
-            margin-top: 5px;
-        }
-        #boostBar {
-            width: 100%;
-            height: 100%;
-            background: #00ffcc;
-            box-shadow: 0 0 8px #00ffcc;
-            transition: width 0.1s;
-        }
-        
-        /* Mobile Overlay Layout */
-        #mobileControls {
-            display: none; 
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 200px;
-            padding: 0 40px;
-            box-sizing: border-box;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 20;
-            pointer-events: none; 
-        }
-        .control-group {
-            display: flex;
-            gap: 20px;
-            pointer-events: auto; 
-        }
-        
-        /* Virtual Analog Stick CSS */
-        #joystickContainer {
-            width: 130px;
-            height: 130px;
-            background: rgba(16, 20, 29, 0.4);
-            border: 2px dashed rgba(0, 255, 204, 0.4);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            touch-action: none;
-            pointer-events: auto;
-            box-shadow: inset 0 0 15px rgba(0, 255, 204, 0.05);
-        }
-        #joystickKnob {
-            width: 55px;
-            height: 55px;
-            background: #10141d;
-            border: 2px solid #00ffcc;
-            border-radius: 50%;
-            position: absolute;
-            left: 35px;
-            top: 35px;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
-            transition: background 0.1s;
-        }
-        #joystickKnob.active {
-            background: rgba(0, 255, 204, 0.2);
-        }
-
-        /* Action Buttons */
-        .btn {
-            width: 85px;
-            height: 85px;
-            background: rgba(16, 20, 29, 0.6);
-            border: 2px solid #00ffcc;
-            border-radius: 50%;
-            color: #00ffcc;
-            font-size: 20px;
-            font-weight: bold;
-            font-family: monospace;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
-            touch-action: none;
-        }
-        .btn:active {
-            background: rgba(0, 255, 204, 0.3);
-            box-shadow: 0 0 25px rgba(0, 255, 204, 0.6);
-        }
-        #btnBoost {
-            border-color: #ff007f;
-            color: #ff007f;
-            box-shadow: 0 0 15px rgba(255, 0, 127, 0.2);
-        }
-        #btnBoost:active {
-            background: rgba(255, 0, 127, 0.3);
-            box-shadow: 0 0 25px rgba(255, 0, 127, 0.6);
-        }
-
+        .zone-slums { color: #ff5500; text-shadow: 0 0 5px #ff5500; }
+        .zone-downtown { color: #00ffff; text-shadow: 0 0 5px #00ffff; }
         .controls-hint {
             margin-top: 15px;
-            color: #4a5568;
-            font-size: 12px;
+            color: #3f4e66;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 2px;
-            text-align: center;
-        }
-
-        @media (max-width: 940px) {
-            #gameContainer {
-                width: 95vw;
-                height: 60vw;
-            }
-            #mobileControls {
-                bottom: 10px;
-                padding: 0 20px;
-            }
-            .btn {
-                width: 70px;
-                height: 70px;
-                font-size: 16px;
-            }
-            #joystickContainer {
-                width: 110px;
-                height: 110px;
-            }
-            #joystickKnob {
-                width: 45px;
-                height: 45px;
-                left: 30px;
-                top: 30px;
-            }
         }
     </style>
 </head>
@@ -183,55 +61,39 @@
 
     <div id="gameContainer">
         <div id="ui">
-            LOCATION: <span class="highlight">NEO-VELO (OUTER LOOP)</span><br>
-            HOVER.VEL: <span id="speedTxt" class="highlight">0</span> KN/H<br>
-            LAP.COUNT: <span id="lapTxt" class="highlight">1</span><br>
-            TIME.ELAP: <span id="timeTxt" class="highlight">0.00</span>s<br>
-            CORE.CELL: 
-            <div class="boost-container"><div id="boostBar"></div></div>
+            GPS.GRID: <span id="zoneTxt" class="zone-slums">LOADING...</span><br>
+            COORDS: X:<span id="coordX" class="highlight">0</span> Y:<span id="coordY" class="highlight">0</span><br>
+            HEADING: <span id="headingTxt" class="highlight">0</span>/255<br>
+            VELOCITY: <span id="speedTxt" class="highlight">0</span> KN/H<br>
+            LAP.RECORDS: <span id="lapTxt" class="highlight">1</span>
         </div>
-        
-        <canvas id="gameCanvas" width="900" height="600"></canvas>
-
-        <div id="mobileControls">
-            <div id="joystickContainer">
-                <div id="joystickKnob"></div>
-            </div>
-            
-            <div class="control-group">
-                <div class="btn" id="btnBoost">BOOST</div>
-                <div class="btn" id="btnDrive">THRUST</div>
-            </div>
-        </div>
+        <canvas id="gameCanvas" width="1024" height="640"></canvas>
     </div>
-    <div class="controls-hint" id="hintText">WASD / ARROWS TO STEER • SPACEBAR FOR BOOST</div>
+    <div class="controls-hint">STEER: WASD/ARROWS • BOOST: SPACEBAR • EXPLORE THE MEGACITY MAP</div>
 
     <script>
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
+        const zoneTxt = document.getElementById("zoneTxt");
+        const coordX = document.getElementById("coordX");
+        const coordY = document.getElementById("coordY");
+        const headingTxt = document.getElementById("headingTxt");
         const speedTxt = document.getElementById("speedTxt");
         const lapTxt = document.getElementById("lapTxt");
-        const timeTxt = document.getElementById("timeTxt");
-        const boostBar = document.getElementById("boostBar");
-        const mobileControls = document.getElementById("mobileControls");
-        const hintText = document.getElementById("hintText");
 
-        // Game Input Vectors
-        const inputs = {
-            forward: false,
-            backward: false,
-            steeringValue: 0, // Maps from -1.0 (hard left) to +1.0 (hard right)
-            boost: false
-        };
+        // Preloaded Spectre-X1 Sprite Base
+        const craftSprite = new Image();
+        craftSprite.src = "https://images.gmanetwork.com/news/images/2021/04/cyber_1_20210423160249.jpg"; 
 
-        // Keyboard Event Listeners (Map keys cleanly to our new float steering system)
+        const inputs = { forward: false, backward: false, left: false, right: false, boost: false };
+
         window.addEventListener("keydown", e => {
             const k = e.key.toLowerCase();
             if (k === "arrowup" || k === "w") inputs.forward = true;
             if (k === "arrowdown" || k === "s") inputs.backward = true;
-            if (k === "arrowleft" || k === "a") inputs.steeringValue = -1.0;
-            if (k === "arrowright" || k === "d") inputs.steeringValue = 1.0;
+            if (k === "arrowleft" || k === "a") inputs.left = true;
+            if (k === "arrowright" || k === "d") inputs.right = true;
             if (k === " ") inputs.boost = true;
         });
 
@@ -239,208 +101,131 @@
             const k = e.key.toLowerCase();
             if (k === "arrowup" || k === "w") inputs.forward = false;
             if (k === "arrowdown" || k === "s") inputs.backward = false;
-            if (k === "arrowleft" || k === "a" || k === "arrowright" || k === "d") {
-                inputs.steeringValue = 0;
-            }
+            if (k === "arrowleft" || k === "a" || k === "arrowright" || k === "d") { inputs.left = false; inputs.right = false; }
             if (k === " ") inputs.boost = false;
         });
 
-        // Right Side Action Button Touch Binding
-        function bindTouchBtn(elementId, inputProperty) {
-            const btn = document.getElementById(elementId);
-            btn.addEventListener("touchstart", (e) => { e.preventDefault(); inputs[inputProperty] = true; }, { passive: false });
-            btn.addEventListener("touchend", (e) => { e.preventDefault(); inputs[inputProperty] = false; }, { passive: false });
-            btn.addEventListener("touchcancel", (e) => { e.preventDefault(); inputs[inputProperty] = false; }, { passive: false });
-        }
-
-        // --- VIRTUAL JOYSTICK ANALOG SYSTEM MATH ---
-        const joystick = document.getElementById("joystickContainer");
-        const knob = document.getElementById("joystickKnob");
-        let joystickTouchId = null;
-        let joystickCenter = { x: 0, y: 0 };
-        let maxStickDistance = 45; // Max radius the knob can slide inside its housing
-
-        function initJoystick() {
-            // Recalculate physical container bounds on launch or viewport scaling
-            const rect = joystick.getBoundingClientRect();
-            joystickCenter = {
-                x: rect.left + rect.width / 2,
-                y: rect.top + rect.height / 2
-            };
-            maxStickDistance = rect.width / 2.8; 
-        }
-
-        joystick.addEventListener("touchstart", (e) => {
-            e.preventDefault();
-            initJoystick(); // Insures bounds map correctly
-            const touch = e.changedTouches[0];
-            joystickTouchId = touch.identifier;
-            knob.classList.add("active");
-            handleJoystickMove(touch);
-        }, { passive: false });
-
-        window.addEventListener("touchmove", (e) => {
-            if (joystickTouchId === null) return;
-            // Scan touch points to follow tracking finger explicitly
-            for (let i = 0; i < e.touches.length; i++) {
-                if (e.touches[i].identifier === joystickTouchId) {
-                    handleJoystickMove(e.touches[i]);
-                    break;
-                }
-            }
-        }, { passive: false });
-
-        window.addEventListener("touchend", (e) => {
-            if (joystickTouchId === null) return;
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                if (e.changedTouches[i].identifier === joystickTouchId) {
-                    resetJoystick();
-                    break;
-                }
-            }
-        });
-
-        function handleJoystickMove(touchPoint) {
-            // Trigonometric delta math relative to thumb coordinates
-            let deltaX = touchPoint.clientX - joystickCenter.x;
-            let deltaY = touchPoint.clientY - joystickCenter.y;
-            let currentDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-            // Constraint logic: Keep knob inside bounded ring
-            if (currentDistance > maxStickDistance) {
-                deltaX = (deltaX / currentDistance) * maxStickDistance;
-                deltaY = (deltaY / currentDistance) * maxStickDistance;
-            }
-
-            // Visually offset the center of the CSS Knob element
-            knob.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-
-            // Compute precision percentage to feed the drift engine
-            // Normalized between -1.0 (Full Left) and +1.0 (Full Right)
-            inputs.steeringValue = deltaX / maxStickDistance;
-        }
-
-        function resetJoystick() {
-            joystickTouchId = null;
-            knob.classList.remove("active");
-            knob.style.transform = "translate(0px, 0px)";
-            inputs.steeringValue = 0; // Snap wheel straight
-        }
-
-        // Toggle HUD View if Mobile Architecture is running
-        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-            mobileControls.style.display = "flex";
-            hintText.innerText = "ANALOG SYSTEMS ENGAGED";
-            window.addEventListener("resize", initJoystick);
-            setTimeout(initJoystick, 300); // Warmup delay to guarantee layout painting complete
-            
-            bindTouchBtn("btnDrive", "forward");
-            bindTouchBtn("btnBoost", "boost");
-        }
-
-        // Game Configuration & Engine Variables
         let lap = 1;
-        let startTime = Date.now();
         let checkpointPassed = false;
+        let headingByte = 0; 
 
+        // Car size shrunk down significantly to make the environment look gargantuan
         const craft = {
-            x: 500,
-            y: 900,
-            width: 34,
-            height: 18,
-            angle: 0,
-            vx: 0,          
-            vy: 0,          
-            speed: 0,
-            baseMaxSpeed: 7,
-            maxSpeed: 7,
-            accel: 0.16,
-            friction: 0.96,
-            turnSpeed: 0.052,
-            battery: 100
+            x: 200, y: 200,
+            width: 30, height: 15, 
+            vx: 0, vy: 0, speed: 0,
+            baseMaxSpeed: 9, maxSpeed: 9,
+            accel: 0.22, friction: 0.95, turnByteSpeed: 5
         };
 
-        const camera = {
-            x: craft.x - canvas.width / 2,
-            y: craft.y - canvas.height / 2,
-            lerpSpeed: 0.08
-        };
+        const camera = { x: craft.x, y: craft.y, zoom: 1.0, targetZoom: 1.0, lerpSpeed: 0.07 };
 
+        // --- ENORMOUS SECTOR-BASED MAP DESIGN ($4000 \times 4000$ SPACE) ---
         const trackPoints = [
-            {x: 500, y: 900}, {x: 1400, y: 900}, {x: 1700, y: 600},
-            {x: 1700, y: -200}, {x: 1200, y: -600}, {x: 400, y: -600},
-            {x: -100, y: -200}, {x: -100, y: 300}, {x: 300, y: 500},
-            {x: 100, y: 900}
+            // ZONE A: THE UNDERCITY SLUMS (Tight, claustrophobic corridors)
+            { x: 200,  y: 200 },   // Starting Grid
+            { x: 1200, y: 200 },   // The Pipe Straightaway
+            { x: 1200, y: 800 },   // Sewer Chicane Corner Entry
+            { x: 600,  y: 800 },   // Waste Processing S-Curve
+            { x: 600,  y: 1400 },  // Lower Slums Drop
+            { x: 1500, y: 1400 },  // Factory Outlet Escape Road
+            
+            // CONDUIT TRANSITION ZONE
+            { x: 2000, y: 2000 },  // Mega Sky-Bridge Ascent Ramp
+            
+            // ZONE B: DOWNTOWN CORPORATE HIGH-RISE (Massive open avenues)
+            { x: 2000, y: 3200 },  // Neon Boulevard Main Straight
+            { x: 3500, y: 3200 },  // Corporate Plaza Gateway
+            { x: 3500, y: 1200 },  // Upper Tier Fast Sweeper
+            { x: 2600, y: 600 },   // Skyscraper Roof Transit Link
+            { x: 2600, y: -400 },  // North Highway Loop
+            { x: -300, y: -400 },  // West Ring Express Lane
+            { x: -300, y: 200 }    // Lowering back into Slums Sector Gate
         ];
-        const trackWidth = 85;
+        
+        // Dynamic roadway widths depending on sector zones
+        function getTrackWidthAtSegment(idx) {
+            // Segments 7 to 12 map out the Downtown Area 
+            if (idx >= 7 && idx <= 12) return 140; // Wide multi-lane freeway
+            return 75; // Narrow, packed concrete slum paths
+        }
 
         function update() {
-            let currentAccel = craft.accel;
             craft.maxSpeed = craft.baseMaxSpeed;
-
-            if (inputs.boost && craft.battery > 0 && inputs.forward) {
-                craft.maxSpeed = 12; 
-                currentAccel = 0.4;
-                craft.battery -= 0.7;
-            } else if (craft.battery < 100) {
-                craft.battery = Math.min(100, craft.battery + 0.2);
-            }
+            if (inputs.boost && inputs.forward) craft.maxSpeed = 15;
 
             if (inputs.forward) {
-                craft.speed = Math.min(craft.maxSpeed, craft.speed + currentAccel);
+                craft.speed = Math.min(craft.maxSpeed, craft.speed + craft.accel);
             } else if (inputs.backward) {
-                craft.speed = Math.max(-craft.maxSpeed / 2, craft.speed - currentAccel);
+                craft.speed = Math.max(-craft.maxSpeed / 2, craft.speed - craft.accel);
             } else {
-                craft.speed *= 0.95; 
+                craft.speed *= 0.94;
             }
 
-            // NEW: Turn velocity scales fluidly based on Analog Position value
-            craft.angle += inputs.steeringValue * craft.turnSpeed;
+            if (inputs.left)  headingByte = (headingByte - craft.turnByteSpeed + 256) % 256;
+            if (inputs.right) headingByte = (headingByte + craft.turnByteSpeed) % 256;
 
-            craft.vx += Math.cos(craft.angle) * craft.speed * 0.15;
-            craft.vy += Math.sin(craft.angle) * craft.speed * 0.15;
-            
+            let radiansHeading = (headingByte / 256) * (Math.PI * 2);
+
+            craft.vx += Math.cos(radiansHeading) * craft.speed * 0.15;
+            craft.vy += Math.sin(radiansHeading) * craft.speed * 0.15;
             craft.vx *= craft.friction;
             craft.vy *= craft.friction;
 
             craft.x += craft.vx;
             craft.y += craft.vy;
 
-            if (!isCraftOnTrack(craft.x, craft.y)) {
-                craft.baseMaxSpeed = 2.5; 
+            // Terrain verification map logic
+            let currentTrackProfile = checkTrackCollisions(craft.x, craft.y);
+            craft.baseMaxSpeed = (!currentTrackProfile.onTrack) ? 3.0 : 9.5;
+
+            // Display zone tag adjustments based on current map position coordinates
+            if (craft.y > 1700) {
+                zoneTxt.innerText = "DOWNTOWN SECTOR (HIGH-RISE)";
+                zoneTxt.className = "zone-downtown";
             } else {
-                craft.baseMaxSpeed = 7.5;
+                zoneTxt.innerText = "UNDERCITY SECTOR (SLUMS)";
+                zoneTxt.className = "zone-slums";
             }
 
-            if (craft.x > 750 && craft.x < 850 && craft.y < -500) checkpointPassed = true;
-            if (checkpointPassed && craft.x > 500 && craft.x < 530 && craft.y > 800 && craft.y < 1000) {
-                lap++;
-                checkpointPassed = false;
-                lapTxt.innerText = lap;
+            // Lap tracking validation marks
+            if (craft.x > 1900 && craft.y > 1900 && craft.y < 2100) checkpointPassed = true;
+            if (checkpointPassed && craft.x > 150 && craft.x < 250 && craft.y > 150 && craft.y < 250) {
+                lap++; checkpointPassed = false; lapTxt.innerText = lap;
             }
 
-            let targetCamX = craft.x - canvas.width / 2;
-            let targetCamY = craft.y - canvas.height / 2;
-            camera.x += (targetCamX - camera.x) * camera.lerpSpeed;
-            camera.y += (targetCamY - camera.y) * camera.lerpSpeed;
+            // Camera adjustments based on velocity shifts
+            let currentVelocityMagnitude = Math.sqrt(craft.vx * craft.vx + craft.vy * craft.vy);
+            camera.targetZoom = 1.0 - Math.min(0.4, currentVelocityMagnitude * 0.035);
 
-            let currentDisplaySpeed = Math.round(Math.sqrt(craft.vx*craft.vx + craft.vy*craft.vy) * 45);
-            speedTxt.innerText = currentDisplaySpeed;
-            timeTxt.innerText = ((Date.now() - startTime) / 1000).toFixed(2);
-            boostBar.style.width = craft.battery + "%";
-            boostBar.style.background = craft.battery < 20 ? "#ff007f" : "#00ffcc";
+            camera.zoom += (camera.targetZoom - camera.zoom) * camera.lerpSpeed;
+            camera.x += (craft.x - camera.x) * camera.lerpSpeed;
+            camera.y += (craft.y - camera.y) * camera.lerpSpeed;
+
+            // HUD data streams
+            coordX.innerText = Math.round(craft.x);
+            coordY.innerText = Math.round(craft.y);
+            headingTxt.innerText = headingByte;
+            speedTxt.innerText = Math.round(currentVelocityMagnitude * 42);
 
             draw();
             requestAnimationFrame(update);
         }
 
-        function isCraftOnTrack(x, y) {
+        // Variable track-width geometric boundary scanner
+        function checkTrackCollisions(x, y) {
             let minDistance = Infinity;
+            let activeSegmentWidth = 80;
             for (let i = 0; i < trackPoints.length; i++) {
-                let dist = distToSegment({x: x, y: y}, trackPoints[i], trackPoints[(i + 1) % trackPoints.length]);
-                if (dist < minDistance) minDistance = dist;
+                let p1 = trackPoints[i];
+                let p2 = trackPoints[(i + 1) % trackPoints.length];
+                let dist = distToSegment({x: x, y: y}, p1, p2);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    activeSegmentWidth = getTrackWidthAtSegment(i);
+                }
             }
-            return minDistance < trackWidth;
+            return { onTrack: minDistance < activeSegmentWidth };
         }
 
         function distToSegment(p, v, w) {
@@ -455,86 +240,78 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             ctx.save();
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.scale(camera.zoom, camera.zoom);
             ctx.translate(-camera.x, -camera.y);
 
-            ctx.strokeStyle = "#0d131f";
-            ctx.lineWidth = 1;
-            let gridSize = 100;
-            let startGridX = Math.floor(camera.x / gridSize) * gridSize;
-            let startGridY = Math.floor(camera.y / gridSize) * gridSize;
-            
-            for(let x = startGridX; x < startGridX + canvas.width + gridSize; x += gridSize) {
-                ctx.beginPath(); ctx.moveTo(x, camera.y); ctx.lineTo(x, camera.y + canvas.height); ctx.stroke();
+            // Infinite Parallax Matrix Background Lines
+            ctx.strokeStyle = "#080d1a"; ctx.lineWidth = 1;
+            let gridSize = 120;
+            let startGridX = Math.floor((camera.x - canvas.width * 2) / gridSize) * gridSize;
+            let startGridY = Math.floor((camera.y - canvas.height * 2) / gridSize) * gridSize;
+            for(let x = startGridX; x < startGridX + (canvas.width * 4); x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, camera.y - canvas.height*2); ctx.lineTo(x, camera.y + canvas.height*2); ctx.stroke();
             }
-            for(let y = startGridY; y < startGridY + canvas.height + gridSize; y += gridSize) {
-                ctx.beginPath(); ctx.moveTo(camera.x, y); ctx.lineTo(camera.x + canvas.width, y); ctx.stroke();
+            for(let y = startGridY; y < startGridY + (canvas.height * 4); y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(camera.x - canvas.width*2, y); ctx.lineTo(camera.x + canvas.width*2, y); ctx.stroke();
             }
 
-            ctx.strokeStyle = "#10141d";
-            ctx.lineWidth = trackWidth * 2;
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-            ctx.beginPath();
+            // FIRST ENVIRONMENT RENDERING PASS: Dynamic roadway segments
             trackPoints.forEach((p, idx) => {
-                if (idx === 0) ctx.moveTo(p.x, p.y);
-                else ctx.lineTo(p.x, p.y);
+                let nextP = trackPoints[(idx + 1) % trackPoints.length];
+                let currentWidth = getTrackWidthAtSegment(idx);
+
+                // Asphalt Base Layer
+                ctx.strokeStyle = (idx >= 7 && idx <= 12) ? "#0f131c" : "#090a0f"; 
+                ctx.lineWidth = currentWidth * 2;
+                ctx.lineCap = "round"; ctx.lineJoin = "round";
+                ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(nextP.x, nextP.y); ctx.stroke();
+
+                // Distinct sector edge illumination lines
+                ctx.strokeStyle = (idx >= 7 && idx <= 12) ? "#00ffff" : "#ff5500"; 
+                ctx.lineWidth = 3;
+                ctx.stroke();
             });
-            ctx.closePath();
-            ctx.stroke();
 
-            ctx.strokeStyle = "#00ffcc";
-            ctx.lineWidth = 3;
-            ctx.shadowColor = "#00ffcc";
-            ctx.shadowBlur = 10;
-            ctx.stroke();
-            ctx.shadowBlur = 0;
+            // FINISH LINE ARRAYS
+            ctx.strokeStyle = "#e60067"; ctx.lineWidth = 8;
+            ctx.beginPath(); ctx.moveTo(200, 200 - 75); ctx.lineTo(200, 200 + 75); ctx.stroke();
 
-            ctx.strokeStyle = "rgba(0, 255, 204, 0.15)";
-            ctx.lineWidth = 2;
-            ctx.setLineDash([10, 20]);
-            ctx.stroke();
-            ctx.setLineDash([]);
+            // SYSTEM VEHICLE RENDER PIPELINE
+            let radiansHeading = (headingByte / 256) * (Math.PI * 2);
 
-            ctx.strokeStyle = "#ff007f";
-            ctx.lineWidth = 6;
-            ctx.shadowColor = "#ff007f";
-            ctx.shadowBlur = 12;
-            ctx.beginPath();
-            ctx.moveTo(500, 900 - trackWidth);
-            ctx.lineTo(500, 900 + trackWidth);
-            ctx.stroke();
-            ctx.shadowBlur = 0;
+            // Overhead Drop Shadow Vector
+            ctx.save();
+            ctx.translate(craft.x + 6, craft.y + 10); 
+            ctx.rotate(radiansHeading);
+            ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+            ctx.fillRect(-craft.width / 2, -craft.height / 2, craft.width, craft.height);
+            ctx.restore();
 
+            // Core Chassis Drawing Pass
             ctx.save();
             ctx.translate(craft.x, craft.y);
-            ctx.rotate(craft.angle);
-            
-            ctx.fillStyle = "#161d2b"; 
-            ctx.strokeStyle = "#00ffcc";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(-craft.width/2, -craft.height/2);
-            ctx.lineTo(craft.width/2, 0); 
-            ctx.lineTo(-craft.width/2, craft.height/2);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-            
-            ctx.fillStyle = "#05070a";
-            ctx.fillRect(-2, -craft.height/4, craft.width/4, craft.height/2);
+            ctx.rotate(radiansHeading);
 
-            if (inputs.forward) {
-                ctx.fillStyle = inputs.boost && craft.battery > 0 ? "#ff007f" : "#00ffcc";
-                let sizeMod = inputs.boost ? 25 : 12;
-                ctx.beginPath();
-                ctx.moveTo(-craft.width/2, -craft.height/4);
-                ctx.lineTo(-craft.width/2 - sizeMod, 0);
-                ctx.lineTo(-craft.width/2, craft.height/4);
-                ctx.closePath();
-                ctx.fill();
+            if (craftSprite.complete && craftSprite.naturalWidth !== 0) {
+                ctx.drawImage(craftSprite, -craft.width/2, -craft.height/2, craft.width, craft.height);
+            } else {
+                ctx.fillStyle = "#121929"; ctx.fillRect(-craft.width/2, -craft.height/2, craft.width, craft.height);
             }
 
-            ctx.restore(); 
+            // Input Delta Layer Checks
+            if (inputs.backward || craft.speed === 0) {
+                ctx.fillStyle = "#ff0044";
+                ctx.fillRect(-craft.width/2, -craft.height/2, 2, 3);
+                ctx.fillRect(-craft.width/2, craft.height/2 - 3, 2, 3);
+            }
+            if (inputs.forward) {
+                ctx.fillStyle = (inputs.boost) ? "#e60067" : "#00ffcc";
+                let flameSize = (inputs.boost) ? 18 : 8;
+                ctx.beginPath(); ctx.moveTo(-craft.width/2, -craft.height/4); ctx.lineTo(-craft.width/2 - flameSize, 0); ctx.lineTo(-craft.width/2, craft.height/4); ctx.closePath(); ctx.fill();
+            }
+
+            ctx.restore();
             ctx.restore(); 
         }
 
